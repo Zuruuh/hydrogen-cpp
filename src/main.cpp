@@ -7,87 +7,9 @@
 #include <sstream>
 #include <vector>
 
-enum class TokenType {
-    _RETURN,
-    INT_LITERAL,
-    SEMICOLON,
-};
-
-struct Token {
-    TokenType type;
-    std::optional<std::string> value {};
-};
-
-std::vector<Token> tokenize(const std::string& str) {
-    std::vector<Token> tokens;
-    std::string buf;
-
-    for (int i = 0; i <str.length(); i++) {
-        char c = str.at(i);
-        if (std::isalpha(c)) {
-            buf.push_back(c);
-            i++;
-
-            while(std::isalpha(str.at(i))) {
-                buf.push_back(str.at(i));
-                i++;
-            }
-            i--;
-
-            if (buf == "return") {
-                tokens.push_back({.type = TokenType::_RETURN});
-                buf.clear();
-            } else {
-                std::cerr << "You messed up lol" << std::endl;
-
-                exit(EXIT_FAILURE);
-            }
-        } else if (std::isdigit(c)) {
-            buf.push_back(c);
-            i++;
-
-            while (std::isdigit(str.at(i))) {
-                buf.push_back(str.at(i));
-                i++;
-            }
-            i--;
-
-            tokens.push_back({.type = TokenType::INT_LITERAL, .value = buf});
-            buf.clear();
-        } else if (c == ';') {
-            tokens.push_back({.type = TokenType::SEMICOLON });
-        } else if (std::isspace(c)) {
-            continue;
-        } else {
-            std::cerr << "You messed up lol" << std::endl;
-
-            exit(EXIT_FAILURE);
-        }
-    }
-
-    return tokens;
-}
-
-std::string tokens_to_asm(const std::vector<Token>& tokens) {
-    std::stringstream output;
-    output << "global _start\nstart:\n";
-
-    for (int i=0; i< tokens.size(); i++) {
-        const Token& token = tokens.at(i);
-
-        if (token.type == TokenType::_RETURN) {
-            if (i + 1< tokens.size() && tokens.at(i+1).type == TokenType::INT_LITERAL) {
-                if (i + 2 < tokens.size() && tokens.at(i+2).type == TokenType::SEMICOLON) {
-                    output << "    mov rax, 60\n";
-                    output << "    mov rdi, " << tokens.at(i+1).value.value() << "\n";
-                    output << "    syscall";
-                }
-            }
-        }
-    }
-
-    return output.str();
-}
+#include "./tokenization.hpp"
+#include "./parser.hpp"
+#include "./generation.hpp"
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -105,11 +27,22 @@ int main(int argc, char* argv[]) {
         contents = contents_stream.str();
     }
 
-    std::vector<Token> tokens = tokenize(contents);
+    Tokenizer tokenizer(std::move(contents));
+    std::vector<Token> tokens = tokenizer.tokenize();
+
+    Parser parser(std::move(tokens));
+    std::optional<NodeExit> tree = parser.parse();
+
+    if (!tree.has_value()) {
+        std::cerr << "No exit statement found" << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    Generator generator(tree.value());
 
     {
         std::fstream file("./out.asm", std::ios::out);
-        file << tokens_to_asm(tokens);
+        file << generator.generate();
     }
 
     system("nasm -felf64 out.asm");
