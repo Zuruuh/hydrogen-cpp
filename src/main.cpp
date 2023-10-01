@@ -31,14 +31,14 @@ int main(int argc, char* argv[]) {
     std::vector<Token> tokens = tokenizer.tokenize();
 
     Parser parser(std::move(tokens));
-    std::optional<NodeExit> tree = parser.parse();
+    std::optional<NodeProgram> program = parser.parse_prog();
 
-    if (!tree.has_value()) {
-        std::cerr << "No exit statement found" << std::endl;
+    if (!program.has_value()) {
+        std::cerr << "Invalid program" << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    Generator generator(tree.value());
+    Generator generator(program.value());
 
     {
         std::fstream file("./out.asm", std::ios::out);
