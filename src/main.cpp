@@ -7,9 +7,10 @@
 #include <sstream>
 #include <vector>
 
-#include "./tokenization.hpp"
-#include "./parser.hpp"
+#include "./arena.hpp"
 #include "./generation.hpp"
+#include "./parser.hpp"
+#include "./tokenization.hpp"
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
